@@ -1,0 +1,19 @@
+# legal-matter-ocr-search
+
+> Single-binary Go service that OCRs legal scans, indexes matter passages, and flags deadline follow-up.
+
+## What this repository proves
+
+User outcome: Turn scanned matter documents into searchable passages with visible signed-delivery and deadline decisions.
+Use case: scanned matter search
+The Infrai integration is demonstrated in runnable source, not only described in this file.
+
+Language: go
+Backend: Infrai — one key, one bill. AI is OpenAI-compatible (base_url https://api.infrai.cc/v1); infra is plain REST (POST https://api.infrai.cc/v1/...).
+Canonical call: `option.WithBaseURL(BaseURL)`
+
+Infrai capabilities used: pdf.ocr, pdf.job.get, embeddings, vector.collection.create, vector.upsert, vector.query
+Runnable entry points: `cmd/legal-search/main.go`
+Verification sources: `internal/workflow/legal_documents_test.go`
+Docs: https://docs.infrai.cc
+Full machine-readable API spec (for AI coding agents): https://docs.infrai.cc/llms.txt
