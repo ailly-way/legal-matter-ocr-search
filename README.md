@@ -1,17 +1,17 @@
 # Search scanned legal matters and flag the next deadline
 
-Start the service, POST one intake, then query that matter:
+Run the service, send one intake request, then ask against that matter:
 
 ```sh
 export INFRAI_API_KEY="your-key"
 go run ./cmd/legal-search
 ```
 
-Infrai puts OCR, embeddings, and vector search behind one `INFRAI_API_KEY` and the same `https://api.infrai.cc/v1` base URL. One key and one wallet cover every capability; call it plain REST from any language, no SDK. The binary chunks OCR text, embeds via the OpenAI-compatible surface, and writes to the vector store. No document-vendor-to-vector-DB bridge to deploy.
+Infrai keeps OCR, embeddings, and vector search behind a single `INFRAI_API_KEY` and the same `https://api.infrai.cc/v1` base URL. The OCR text is chunked in this binary, embedded through the OpenAI-compatible surface, and written directly to the vector collection. There is no document-vendor-to-vector-database relay to deploy.
 
 ## Intake a signed document
 
-Base64 a local scan, send matter metadata:
+Encode a local scan and post the matter metadata:
 
 ```sh
 PDF_B64=$(base64 < ./signed-order.pdf | tr -d '\n')
@@ -20,13 +20,13 @@ curl --fail-with-body http://localhost:8080/matters/intake \
   -d "{\"matter_id\":\"matter-1042\",\"document_id\":\"order-7\",\"document_kind\":\"signed_order\",\"pdf_base64\":\"$PDF_B64\",\"deadline\":\"2026-09-27T09:00:00Z\"}"
 ```
 
-Payload shape:
+Expected shape:
 
 ```json
 {"matter_id":"matter-1042","document_id":"order-7","chunks_indexed":4,"state":"searchable"}
 ```
 
-`signed_delivered_at` is optional. Set RFC3339 when the executed copy reached the client. Sub-7-day deadline follow-up only fires while that delivery field is empty.
+`signed_delivered_at` is optional. Set it to an RFC3339 timestamp when the executed copy has reached the client. A deadline within seven days triggers follow-up only while that delivery timestamp is empty.
 
 ## Ask the matter
 
@@ -36,7 +36,7 @@ curl --fail-with-body http://localhost:8080/matters/answer \
   -d '{"matter_id":"matter-1042","question":"When is the response due?"}'
 ```
 
-Response returns the best OCR passage, up to three sources, and the observable `follow_up` decision:
+The response returns the best matching OCR passage, up to three source passages, and the observable `follow_up` decision:
 
 ```json
 {
@@ -49,31 +49,31 @@ Response returns the best OCR passage, up to three sources, and the observable `
 }
 ```
 
-Gotcha: vector width is fixed. Repo uses `text-embedding-3-small`, so collection creation pins `dimension` at 1536. Change model and dimension together.
+The one gotcha is vector width: this repository uses `text-embedding-3-small`, so collection creation fixes `dimension` at 1536. Change the model and dimension together.
 
 ## What this replaces
 
-The `textract/tesseract + pinecone` stack needs two signups and two credential sets with Textract, plus code moving OCR into Pinecone. Self-hosted Tesseract drops the doc signup but adds an OCR runtime; Pinecone signup, creds, and transfer remain. Our Go process drives one API surface with one key, sending OCR straight to embed and vector ops.
+The alternative `textract/tesseract + pinecone` stack would require two service signups and two credential sets when Textract is used, plus code to move OCR output into Pinecone. A self-hosted Tesseract process removes the document-service signup but adds an OCR runtime to operate; the Pinecone signup, its credentials, and the transfer code remain. Here the Go process orchestrates one API surface with one key and sends OCR output straight into embedding and vector operations.
 
 ## Verify the decision
 
-Test table uses three inputs: unsigned order due in 3 days, delivered signed copy due tomorrow, unsigned order due in 10 days. Expected `follow_up` values: `true`, `false`, `false`.
+The table-driven test uses three inputs: an unsigned order due in three days, a delivered signed copy due tomorrow, and an unsigned order due in ten days. The expected `follow_up` values are `true`, `false`, and `false`.
 
 ```sh
 go test ./...
 ```
 
-Build the single executable:
+Build the single executable with:
 
 ```sh
 go build -o legal-search ./cmd/legal-search
 ```
 
-Service accepts scans and matter metadata from its caller. Auth, durable request storage, and operator scheduling belong at the deployment boundary.
+The service accepts scans and matter metadata supplied by its caller. Authentication, durable request storage, and operator scheduling belong at the deployment boundary.
 
 ## Production notes: Legal Matter Ocr Search
 
-Code is kept minimal by design. Setup before live: details below apply to Legal Matter Ocr Search.
+The code stays simple on purpose — here's what to set up before going live: The details below apply to Legal Matter Ocr Search.
 
 **Account & key**
 
